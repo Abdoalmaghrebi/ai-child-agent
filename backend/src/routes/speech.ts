@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { elevenlabs, VOICE_OPTIONS } from '../lib/elevenlabs';
 import { openai } from '../lib/openai';
 import multer from 'multer';
+import { Readable } from 'stream';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -22,7 +23,6 @@ router.post('/synthesize', async (req, res) => {
       model_id: 'eleven_turbo_v2_5',
     });
 
-    // تحويل Stream لـ Buffer
     const chunks: Buffer[] = [];
     for await (const chunk of audio) {
       chunks.push(chunk);
@@ -45,8 +45,13 @@ router.post('/transcribe', upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: 'No audio file' });
     }
 
+    // ⭐ تحويل Buffer لـ File (Blob) يقبله Whisper
+    const audioFile = new File([req.file.buffer], 'audio.webm', {
+      type: req.file.mimetype || 'audio/webm',
+    });
+
     const transcription = await openai.audio.transcriptions.create({
-      file: req.file.buffer,
+      file: audioFile,
       model: 'whisper-1',
     });
 
